@@ -27,6 +27,7 @@ pragma solidity ^0.8.19;
 import {DecentralizedStableCoin} from "src/DecentralizedStableCoin.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 /**
  * @title DSCEngine
@@ -46,9 +47,14 @@ contract DSCEngine is ReentrancyGuard {
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
+    uint256 private constant ADDITTIONAL_FEED_PRECISION = 1e10;
+    uint256 private constant PRECISION = 1e18;
 
     mapping(address token => address priceFeed) private s_priceFeed;
     mapping(address user => mapping(address token => uint256 balance)) private s_collateralDeposit;
+    mapping(address user => uint256 amountDSCMinted) private s_DSCMinted;
+
+    address[] private s_collateralToken;
 
     DecentralizedStableCoin private immutable i_dsc;
 
@@ -84,6 +90,7 @@ contract DSCEngine is ReentrancyGuard {
         }
         for (uint256 i = 0; i < tokenAddresses.length; i++) {
             s_priceFeed[tokenAddresses[i]] = priceFeedAddresses[i];
+            s_collateralToken.push(tokenAddresses[i]);
         }
         i_dsc = DecentralizedStableCoin(dscAddress);
     }
@@ -117,11 +124,59 @@ contract DSCEngine is ReentrancyGuard {
 
     function redeemCollateral() external {}
 
-    function mintDsc() external {}
+    function mintDsc(uint256 amountDscToMint) external moreThanaZero(amountDscToMint) nonReentrant {
+        s_DSCMinted[msg.sender] = amountDscToMint;
+        revertIfHealthFactorIsBroken(msg.sender);
+    }
 
     function brunDsc() external {}
 
     function liquidate() external {}
 
     function getHealthFactor() external view {}
+
+    /*//////////////////////////////////////////////////////////////
+                                PRIVATE & INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function revertIfHealthFactorIsBroken(address user) internal view {
+        // check health factor(do they have enough collateral?)
+        // Revert if they don't
+    }
+
+    function _healthFactor(address user) internal view returns (uint256) {
+        (uint256 totalDscMinted, uint256 collateralValueInUsd) = _getAccountInformtion(user);
+    }
+
+    function _getAccountInformtion(address user)
+        private
+        view
+        returns (uint256 totalDscMinted, uint256 collateralValueInUsd)
+    {
+        uint256 totalDscMinted = s_DSCMinted[user];
+        uint256 collateralValueInUsd = getAccountCollteralValue(user);
+
+        return (totalDscMinted, collateralValueInUsd);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 PUBLIC  & EXTERNAL VIEW FUNCTION 
+    //////////////////////////////////////////////////////////////*/
+
+    function getAccountCollteralValue(address user) public view returns (uint256 totalCollateralValueInUsd) {
+        for (uint256 i = 0; i < s_collateralToken.length; i++) {
+            address token = s_collateralToken[i];
+            uint256 amount = s_collateralDeposit[user][token];
+            totalCollateralValueInUsd += getUsdValue(token, amount);
+        }
+
+        return totalCollateralValueInUsd;
+    }
+
+    function getUsdValue(address token, uint256 amount) public view returns (uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeed[token]);
+        (, int256 price,,,) = priceFeed.latestRoundData();
+
+        return ((uint256(price) * ADDITTIONAL_FEED_PRECISION) * amount) / PRECISION;
+    }
 }
