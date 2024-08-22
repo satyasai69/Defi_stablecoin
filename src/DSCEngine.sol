@@ -43,12 +43,17 @@ contract DSCEngine is ReentrancyGuard {
     error DSCEngine_TokenAddressesAndPriceFeedAddressesMustBeSameLength();
     error DSCEngine_NotAllowedToken();
     error DSCEngine_TransferFailed();
+    error DSCEngine_BreakHealthFactor(uint256 healthFactor);
+    error DSCEngine__MintFailed();
 
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
     uint256 private constant ADDITTIONAL_FEED_PRECISION = 1e10;
     uint256 private constant PRECISION = 1e18;
+    uint256 private constant LIQUIATION_THRESHOLD = 50;
+    uint256 private constant LIQUIATION_PREISION = 100;
+    uint256 private constant MIN_HEALTH_FACTOR = 1;
 
     mapping(address token => address priceFeed) private s_priceFeed;
     mapping(address user => mapping(address token => uint256 balance)) private s_collateralDeposit;
@@ -126,7 +131,11 @@ contract DSCEngine is ReentrancyGuard {
 
     function mintDsc(uint256 amountDscToMint) external moreThanaZero(amountDscToMint) nonReentrant {
         s_DSCMinted[msg.sender] = amountDscToMint;
-        revertIfHealthFactorIsBroken(msg.sender);
+        _revertIfHealthFactorIsBroken(msg.sender);
+        bool minted = i_dsc.mint(msg.sender, amountDscToMint);
+        if (!minted) {
+            revert DSCEngine__MintFailed();
+        }
     }
 
     function brunDsc() external {}
@@ -139,13 +148,22 @@ contract DSCEngine is ReentrancyGuard {
                                 PRIVATE & INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function revertIfHealthFactorIsBroken(address user) internal view {
+    function _revertIfHealthFactorIsBroken(address user) internal view {
         // check health factor(do they have enough collateral?)
         // Revert if they don't
+
+        uint256 userHealthFactor = _healthFactor(user);
+
+        if (userHealthFactor < MIN_HEALTH_FACTOR) {
+            revert DSCEngine_BreakHealthFactor(userHealthFactor);
+        }
     }
 
     function _healthFactor(address user) internal view returns (uint256) {
         (uint256 totalDscMinted, uint256 collateralValueInUsd) = _getAccountInformtion(user);
+        uint256 collateralAdjustedForThreshold = (collateralValueInUsd * LIQUIATION_THRESHOLD) / LIQUIATION_PREISION;
+
+        return (collateralAdjustedForThreshold * PRECISION) / totalDscMinted;
     }
 
     function _getAccountInformtion(address user)
