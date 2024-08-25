@@ -90,7 +90,7 @@ contract DSCEngine is ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     constructor(address[] memory tokenAddresses, address[] memory priceFeedAddresses, address dscAddress) {
-        if (tokenAddresses.length == priceFeedAddresses.length) {
+        if (tokenAddresses.length != priceFeedAddresses.length) {
             revert DSCEngine_TokenAddressesAndPriceFeedAddressesMustBeSameLength();
         }
         for (uint256 i = 0; i < tokenAddresses.length; i++) {
@@ -104,7 +104,20 @@ contract DSCEngine is ReentrancyGuard {
                            EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function depositCollateralAndMintDsc() external {}
+    /*
+     * @param tokenCollateralAddress: The ERC20 token address of the collateral you're depositing
+     * @param amountCollateral: The amount of collateral you're depositing
+     * @param amountDscToMint: The amount of DSC you want to mint
+     * @notice This function will deposit your collateral and mint DSC in one transaction
+     */
+    function depositCollateralAndMintDsc(
+        address tokenCollateralAddress,
+        uint256 amountCollateral,
+        uint256 amountDscToMint
+    ) external {
+        depositCollateral(tokenCollateralAddress, amountCollateral);
+        mintDsc(amountDscToMint);
+    }
 
     /**
      * @notice "follows CEI"
@@ -112,7 +125,7 @@ contract DSCEngine is ReentrancyGuard {
      * @param amountToCollarteral "The amount of collateral to deposit"
      */
     function depositCollateral(address tokenCollateralAddress, uint256 amountToCollarteral)
-        external
+        public
         moreThanaZero(amountToCollarteral)
         isAllowedToken(tokenCollateralAddress)
         nonReentrant
@@ -129,7 +142,7 @@ contract DSCEngine is ReentrancyGuard {
 
     function redeemCollateral() external {}
 
-    function mintDsc(uint256 amountDscToMint) external moreThanaZero(amountDscToMint) nonReentrant {
+    function mintDsc(uint256 amountDscToMint) public moreThanaZero(amountDscToMint) nonReentrant {
         s_DSCMinted[msg.sender] = amountDscToMint;
         _revertIfHealthFactorIsBroken(msg.sender);
         bool minted = i_dsc.mint(msg.sender, amountDscToMint);
