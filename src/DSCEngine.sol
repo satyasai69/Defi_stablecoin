@@ -28,6 +28,7 @@ import {DecentralizedStableCoin} from "src/DecentralizedStableCoin.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import {MockV3Aggregator} from "test/mocks/MockV3Aggregator.sol";
 
 /**
  * @title DSCEngine
@@ -46,6 +47,7 @@ contract DSCEngine is ReentrancyGuard {
     error DSCEngine_BreakHealthFactor(uint256 healthFactor);
     error DSCEngine__MintFailed();
     error DSCEngine__HealthFactorOk();
+    error DSCEngine__HealthFactorNotImproved();
 
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
@@ -147,7 +149,7 @@ contract DSCEngine is ReentrancyGuard {
         external
     {
         redeemCollateral(tokenCollateralAddress, amountCollateral);
-        mintDsc(amoutToBurnDsc);
+        brunDsc(amoutToBurnDsc);
     }
 
     function redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral)
@@ -168,7 +170,7 @@ contract DSCEngine is ReentrancyGuard {
         }
     }
 
-    function brunDsc(uint256 amount) external moreThanaZero(amount) {
+    function brunDsc(uint256 amount) public moreThanaZero(amount) {
         _brunDsc(amount, msg.sender, msg.sender);
     }
 
@@ -190,11 +192,31 @@ contract DSCEngine is ReentrancyGuard {
         uint256 totalCollateralRedeemed = tokenAmountFromDebtCovered + bonusCollateral;
 
         _redeemCollateral(collateral, totalCollateralRedeemed, user, msg.sender);
+        _brunDsc(debtToCover, user, msg.sender);
+
+        uint256 endingUserHealthFactor = _healthFactor(user);
+        // This conditional should never hit, but just in case
+        if (endingUserHealthFactor <= startingUserHealthFactor) {
+            revert DSCEngine__HealthFactorNotImproved();
+        }
+        _revertIfHealthFactorIsBroken(msg.sender);
     }
 
     /*//////////////////////////////////////////////////////////////
                                 PRIVATE & INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    function _calculateHealthFactor(uint256 totalDscMinted, uint256 collateralValueInUsd)
+        private
+        pure
+        returns (uint256)
+    {
+        if (totalDscMinted == 0) return type(uint256).max;
+
+        uint256 collateralAdjustedForThreshold = (collateralValueInUsd * LIQUIATION_THRESHOLD) / LIQUIATION_PREISION;
+
+        return (collateralAdjustedForThreshold * PRECISION) / totalDscMinted;
+    }
 
     function _brunDsc(uint256 amount, address onBehalfOf, address dscFrom) private {
         s_DSCMinted[onBehalfOf] -= amount;
@@ -232,9 +254,8 @@ contract DSCEngine is ReentrancyGuard {
 
     function _healthFactor(address user) internal view returns (uint256) {
         (uint256 totalDscMinted, uint256 collateralValueInUsd) = _getAccountInformtion(user);
-        uint256 collateralAdjustedForThreshold = (collateralValueInUsd * LIQUIATION_THRESHOLD) / LIQUIATION_PREISION;
 
-        return (collateralAdjustedForThreshold * PRECISION) / totalDscMinted;
+        return _calculateHealthFactor(totalDscMinted, collateralValueInUsd);
     }
 
     function _getAccountInformtion(address user)
@@ -251,6 +272,10 @@ contract DSCEngine is ReentrancyGuard {
     /*//////////////////////////////////////////////////////////////
                                  PUBLIC  & EXTERNAL VIEW FUNCTION 
     //////////////////////////////////////////////////////////////*/
+
+    function calculateHealthFactor(uint256 totalDscMinted, uint256 collateralValueInUsd) external pure {
+        _calculateHealthFactor(totalDscMinted, collateralValueInUsd);
+    }
 
     function getTokenAmountFromUsd(address token, uint256 usdAmountInWei) public view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeed[token]);
@@ -274,6 +299,14 @@ contract DSCEngine is ReentrancyGuard {
         (, int256 price,,,) = priceFeed.latestRoundData();
 
         return ((uint256(price) * ADDITTIONAL_FEED_PRECISION) * amount) / PRECISION;
+    }
+
+    function getAccountInformtion(address user)
+        external
+        view
+        returns (uint256 totalDscMinted, uint256 collateralValueInUsd)
+    {
+        (totalDscMinted, collateralValueInUsd) = _getAccountInformtion(user);
     }
 
     function getHealthFactor(address user) external view returns (uint256) {
