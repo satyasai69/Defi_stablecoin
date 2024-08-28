@@ -28,7 +28,7 @@ contract DeployDSC is Script {
 
         console.log("Price Feed Addresses:");
         for (uint256 i = 0; i < priceFeedAddress.length; i++) {
-            console.log("Price Feed", i, ":", priceFeedAddress[i]);
+            console.log("Price Feeds", i, ":", priceFeedAddress[i]);
         }
 
         vm.startBroadcast();

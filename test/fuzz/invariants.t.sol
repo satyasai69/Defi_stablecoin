@@ -49,7 +49,20 @@ contract invariants is StdInvariant, Test {
         uint256 wbtcValue = dsce.getUsdValue(address(wbtc), totalwbtcdeposit);
 
         assert(wethValue + wbtcValue >= totalSupply);
-
+        console.log("weth:", address(weth));
+        console.log("wbtc:", address(wbtc));
+        console.log("Dsc totalSupply", dsc.totalSupply());
         console.log("Times mint called :", handler.timeMintIsCalled());
+    }
+
+    function ivariants_gettersShouldNotRevert() public view {
+        dsce.getPrecision();
+        dsce.getAdditionalFeedPrecision();
+        dsce.getLiquidationThreshold();
+        dsce.getLiquidationBonus();
+        dsce.getLiquidationPrecision();
+        dsce.getMinHealthFactor();
+        dsce.getCollateralTokens();
+        dsce.getDsc();
     }
 }

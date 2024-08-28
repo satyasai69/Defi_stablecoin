@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.19;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, console} from "forge-std/Test.sol";
 import {DSCEngine} from "src/DSCEngine.sol";
 import {DecentralizedStableCoin} from "src/DecentralizedStableCoin.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
@@ -16,6 +16,7 @@ contract Handler is Test {
 
     uint256 MAX_DEPOSIT_SIZE = type(uint96).max;
     uint256 public timeMintIsCalled;
+    address[] public usersWithCollatrialDeposited;
 
     constructor(DSCEngine _dsce, DecentralizedStableCoin _dsc, address _weth, address _wbtc) {
         dsce = _dsce;
@@ -27,6 +28,32 @@ contract Handler is Test {
     /*//////////////////////////////////////////////////////////////
                              PUBLIC FUNCTION
     //////////////////////////////////////////////////////////////*/
+
+    function mint(uint256 amount, uint256 addressSeed) public {
+        if (usersWithCollatrialDeposited.length == 0) {
+            return;
+        }
+        address sender = usersWithCollatrialDeposited[addressSeed % usersWithCollatrialDeposited.length];
+        (uint256 totalDscMinted, uint256 collaterialValueInUsd) = dsce.getAccountInformtion(sender);
+        int256 maxMintAmount = (int256(collaterialValueInUsd / 2)) - int256(totalDscMinted);
+
+        console.log("maxMintAmount:", maxMintAmount);
+
+        if (maxMintAmount < 0) {
+            return;
+        }
+
+        uint256 amounts = bound(amount, 0, uint256(maxMintAmount));
+        if (amounts == 0) {
+            return;
+        }
+        vm.startPrank(sender);
+
+        dsce.mintDsc(amounts);
+
+        vm.stopPrank();
+        timeMintIsCalled++;
+    }
 
     function depositCollateral(uint256 collaterialSeed, uint256 collaterialAmount) public {
         uint256 collaterialAmounts = bound(collaterialAmount, 1, MAX_DEPOSIT_SIZE);
@@ -42,32 +69,15 @@ contract Handler is Test {
         dsce.depositCollateral(address(collaterial), collaterialAmounts);
 
         vm.stopPrank();
-    }
-
-    function mintDsc() public {
-        (uint256 totalDscMinted, uint256 collaterialValueInUsd) = dsce.getAccountInformtion(msg.sender);
-        int256 maxMintAmount = (int256(collaterialValueInUsd / 2)) - int256(totalDscMinted);
-
-        if (maxMintAmount < 0) {
-            return;
-        }
-
-        uint256 amount = bound(uint256(maxMintAmount), 1, MAX_DEPOSIT_SIZE);
-        if (amount == 0) {
-            return;
-        }
-
-        vm.startPrank(msg.sender);
-        dsce.mintDsc(amount);
-        vm.stopPrank();
-        timeMintIsCalled++;
+        usersWithCollatrialDeposited.push(msg.sender);
     }
 
     function redeemCollaterial(uint256 collaterialSeed, uint256 collaterialAmount) public {
         ERC20Mock collaterial = _getCollateralFromSeed(collaterialSeed);
 
         uint256 maxCollaterialToRedeem = dsce.getCollateralBalanceOfUser(msg.sender, address(collaterial));
-        uint256 collaterialAmounts = bound(collaterialAmount, 1, maxCollaterialToRedeem);
+
+        uint256 collaterialAmounts = bound(collaterialAmount, 0, maxCollaterialToRedeem);
 
         if (collaterialAmounts == 0) {
             return;
