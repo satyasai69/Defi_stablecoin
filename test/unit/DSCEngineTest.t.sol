@@ -253,10 +253,6 @@ contract DSCEngineTest is StdCheats, Test {
         assertEq(userBalance, ERC20_MINT_AMOUNT);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                             LIQUIDTION TEST
-    //////////////////////////////////////////////////////////////*/
-
     function testProperlyReportsHealthFactor() public depositedCollateralAndMintedDsc {
         uint256 expectedHealthFactor = 100 ether;
         uint256 healthFactor = dsce.getHealthFactor(USER);
@@ -266,4 +262,8 @@ contract DSCEngineTest is StdCheats, Test {
         // 10,000 / 100 = 100 health factor
         assertEq(healthFactor, expectedHealthFactor);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                             LIQUIDTION TEST
+    //////////////////////////////////////////////////////////////*/
 }
