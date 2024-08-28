@@ -13,11 +13,14 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {StdInvariant} from "forge-std/StdInvariant.sol";
 
+import {Handler} from "./Handler.t.sol";
+
 contract invariants is StdInvariant, Test {
     DeployDSC depolyer;
     HelperConfig config;
     DSCEngine dsce;
     DecentralizedStableCoin dsc;
+    Handler handler;
 
     address weth;
     address wbtc;
@@ -30,7 +33,9 @@ contract invariants is StdInvariant, Test {
 
         (,, weth, wbtc,) = config.activeNetworkConfig();
 
-        targetContract(address(dsce));
+        handler = new Handler(dsce, dsc, address(weth), address(wbtc));
+
+        targetContract(address(handler));
     }
 
     function invariant_protocolMustHaveMorevalueThanTotalSupply() public view {
