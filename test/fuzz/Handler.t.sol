@@ -15,6 +15,7 @@ contract Handler is Test {
     ERC20Mock wbtc;
 
     uint256 MAX_DEPOSIT_SIZE = type(uint96).max;
+    uint256 public timeMintIsCalled;
 
     constructor(DSCEngine _dsce, DecentralizedStableCoin _dsc, address _weth, address _wbtc) {
         dsce = _dsce;
@@ -59,6 +60,7 @@ contract Handler is Test {
         vm.startPrank(msg.sender);
         dsce.mintDsc(amount);
         vm.stopPrank();
+        timeMintIsCalled++;
     }
 
     function redeemCollaterial(uint256 collaterialSeed, uint256 collaterialAmount) public {
