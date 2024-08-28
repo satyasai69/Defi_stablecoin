@@ -11,7 +11,9 @@ import {DSCEngine} from "src/DSCEngine.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract invariants {
+import {StdInvariant} from "forge-std/StdInvariant.sol";
+
+contract invariants is StdInvariant, Test {
     DeployDSC depolyer;
     HelperConfig config;
     DSCEngine dsce;
@@ -27,6 +29,8 @@ contract invariants {
         (dsc, dsce, config) = depolyer.run();
 
         (,, weth, wbtc,) = config.activeNetworkConfig();
+
+        targetContract(address(dsce));
     }
 
     function invariant_protocolMustHaveMorevalueThanTotalSupply() public view {
