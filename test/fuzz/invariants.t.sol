@@ -49,6 +49,7 @@ contract invariants is StdInvariant, Test {
         uint256 wbtcValue = dsce.getUsdValue(address(wbtc), totalwbtcdeposit);
 
         assert(wethValue + wbtcValue >= totalSupply);
+        console.log("hold : ", wethValue + wbtcValue, "totalSupply", totalSupply);
         console.log("weth:", address(weth));
         console.log("wbtc:", address(wbtc));
         console.log("Dsc totalSupply", dsc.totalSupply());
