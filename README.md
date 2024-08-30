@@ -1,66 +1,96 @@
-## Foundry
+# DAI Stablecoin Contract with Foundry
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+This repository contains the code for a DAI stablecoin implementation built using Solidity and tested with Foundry. The primary contract, DSCEngine, manages the minting and redeeming of decentralized stablecoins (DSC), as well as collateral deposits and withdrawals.
 
-Foundry consists of:
+# Table of Contents
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+Introduction
+Features
+Contracts Overview
+Installation
+Usage
+Testing
+License
+Introduction
+The DSCEngine contract is the core of the DSC system. It handles the logic for minting and redeeming DSC, managing collateral, and ensuring the stability and health of the system. This project demonstrates the application of advanced Solidity concepts, including reentrancy protection, price feeds via Chainlink oracles, and custom error handling.
 
-## Documentation
+# Features
 
-https://book.getfoundry.sh/
+Collateral Management: Deposit and withdraw supported collateral tokens.
+Minting & Burning: Mint DSC against deposited collateral and burn DSC to redeem collateral.
+Health Factor: Ensures the health factor of accounts to prevent under-collateralization.
+Liquidation Mechanism: Liquidate under-collateralized positions with bonuses for liquidators.
+Oracle Integration: Uses Chainlink oracles for secure and decentralized price feeds.
 
-## Usage
+# Contracts Overview
 
-### Build
+DSCEngine
+This contract manages the core functionality of the DSC system:
 
-```shell
-$ forge build
+# Collateral Management:
+
+Allows users to deposit and redeem collateral tokens.
+DSC Minting: Users can mint DSC tokens by depositing collateral.
+Health Factor Monitoring: Ensures that users maintain sufficient collateral to support their minted DSC.
+
+# Liquidation:
+
+Facilitates the liquidation of under-collateralized positions.
+
+# DecentralizedStableCoin
+
+A simplified stablecoin contract that represents the DSC token. This contract is integrated with the DSCEngine for minting and burning operations.
+
+# OracleLib
+
+A custom library for interacting with Chainlink price feeds. It includes functions to verify the freshness of price data and to prevent stale prices from being used.
+
+# Installation
+
+To get started with the project, clone the repository and install the required dependencies.
+
+```
+git clone https://github.com/yourusername/dai-stablecoin-foundry.git
+cd dai-stablecoin-foundry
+forge install
 ```
 
-### Test
+# Usage
 
-```shell
-$ forge test
+The DSCEngine contract can be used for various operations:
+
+# Deposit Collateral:
+
+```solidity
+function depositCollateral(address tokenCollateralAddress, uint256 amountToCollateral) external;
 ```
 
-### Format
+# Mint DSC:
 
-```shell
-$ forge fmt
+```solidity
+function mintDsc(uint256 amountDscToMint) external;
 ```
 
-### Gas Snapshots
+Redeem Collateral:
 
-```shell
-$ forge snapshot
+```solidity
+function redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral) external;
 ```
 
-### Anvil
+#Liquidate Under-Collateralized Positions:
 
-```shell
-$ anvil
+```solidity
+function liquidate(address collateral, address user, uint256 debtToCover) external;
 ```
 
-### Deploy
+# Testing
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+The project includes a suite of tests written in Solidity using Foundry. To run the tests, use the following command:
+
+```
+forge test
 ```
 
-### Cast
+# License
 
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+This project is licensed under the MIT License. See the LICENSE file for more details.
